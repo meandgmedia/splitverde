@@ -25,7 +25,7 @@ export function parseCommissions(csv:string): CommissionRow[] {
     if(!policy)throw new Error('Row '+(i+2)+': missing policy.');
     if(!/^-?\d+(?:\.\d{1,2})?$/.test(amount))throw new Error('Row '+(i+2)+': invalid amount.');
     const [whole,decimal='']=amount.split('.');
-    const cents=Number(whole)*100+(whole.startsWith('-')?-1:1)*Number(decimal.padEnd(2,'0'));
+    const cents=(whole.startsWith('-')?-1:1)*(Math.abs(Number(whole))*100+Number(decimal.padEnd(2,'0')));
     if(!Number.isSafeInteger(cents))throw new Error('Row '+(i+2)+': amount too large.');
     return {policy,amountCents:cents};
   });
