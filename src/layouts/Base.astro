@@ -1,0 +1,26 @@
+---
+const { title = 'SplitVerde | Insurance Commission Reconciliation', description = 'Track insurance commissions, identify discrepancies, and manage producer payouts.' } = Astro.props;
+const isApp = Astro.url.pathname.startsWith('/app');
+const base = import.meta.env.PUBLIC_SITE_URL || 'https://splitverde.com';
+const production = import.meta.env.PUBLIC_ENABLE_INDEXING === 'true' && Astro.url.hostname === 'splitverde.com';
+const canonical = new URL(Astro.url.pathname, base).toString();
+Astro.response.headers.set('X-Robots-Tag', production && !isApp ? 'index, follow' : 'noindex, nofollow');
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content={production && !isApp ? 'index,follow' : 'noindex,nofollow'} />
+<title>{title}</title><meta name="description" content={description} />
+{production && !isApp && <link rel="canonical" href={canonical} />}
+<meta property="og:title" content={title} /><meta property="og:description" content={description} />
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+<header class="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+<a href="/" class="text-2xl font-extrabold tracking-tight text-emerald-950">split<span class="text-emerald-600">verde</span></a>
+<nav class="flex gap-5 text-sm font-semibold"><a href="/features">Features</a><a href="/pricing">Pricing</a><a href="/how-it-works">How it works</a></nav>
+</header>
+<main><slot /></main>
+<footer class="mx-auto mt-20 max-w-6xl border-t border-slate-200 px-6 py-8 text-sm text-slate-500">© {new Date().getFullYear()} SplitVerde · Every commission. Accounted for.</footer>
+</body>
+</html>
