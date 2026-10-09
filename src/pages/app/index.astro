@@ -1,5 +1,18 @@
 ---
 import Base from '../../layouts/Base.astro';
-import Dashboard from '../../components/Dashboard';
+import {getSession} from '../../lib/auth';
+const session = await getSession(Astro);
+if (!session) return Astro.redirect('/login',302);
 ---
-<Base title="Workspace Preview | SplitVerde"><Dashboard client:load /></Base>
+<Base title="Agency Workspace | SplitVerde">
+<section class="mx-auto max-w-5xl px-6 py-12">
+<div class="flex flex-wrap items-start justify-between gap-4">
+<div><p class="text-sm font-semibold uppercase tracking-wide text-emerald-700">Private workspace</p><h1 class="mt-2 text-3xl font-bold text-emerald-950">{session.agency_name}</h1><p class="mt-2 text-slate-600">Signed in as {session.email} · {session.role}</p></div>
+<form action="/auth/logout" method="POST"><button type="submit" class="rounded-lg border bg-white px-4 py-2 font-semibold">Sign out</button></form>
+</div>
+<div class="mt-8 grid gap-5 md:grid-cols-2">
+<div class="rounded-xl border bg-white p-6"><h2 class="text-lg font-bold">Reconciliation</h2><p class="mt-2 text-slate-600">Try the browser-only commission comparison tool. Saved agency imports are coming next.</p><a href="/app/reconcile" class="mt-5 inline-block rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white">Open reconciliation demo →</a></div>
+<div class="rounded-xl border bg-white p-6"><h2 class="text-lg font-bold">Agency records</h2><p class="mt-2 text-slate-600">Your workspace is protected by a server-validated session and D1 agency membership. Commission storage and team management are not enabled yet.</p></div>
+</div>
+</section>
+</Base>
