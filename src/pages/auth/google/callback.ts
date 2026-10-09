@@ -1,0 +1,22 @@
+import type {APIRoute} from 'astro';
+import {envFor,establishSession,findOrCreateUser,messagePage,redirect} from '../../../lib/auth';
+export const GET:APIRoute=async(ctx)=>{
+ const state=ctx.url.searchParams.get('state'),code=ctx.url.searchParams.get('code');
+ const saved=ctx.cookies.get('sv_oauth_state')?.value,verifier=ctx.cookies.get('sv_oauth_verifier')?.value;
+ ctx.cookies.delete('sv_oauth_state',{path:'/auth/google'});ctx.cookies.delete('sv_oauth_verifier',{path:'/auth/google'});
+ if(!state||!saved||state!==saved||!code||!verifier)return redirect('/login?error=oauth');
+ const env=envFor(ctx);if(!env.GOOGLE_CLIENT_ID||!env.GOOGLE_CLIENT_SECRET)return messagePage('Not configured','Google authentication is unavailable.',503);
+ const tokenRes=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:env.GOOGLE_CLIENT_ID,client_secret:env.GOOGLE_CLIENT_SECRET,code,code_verifier:verifier,grant_type:'authorization_code',redirect_uri:ctx.url.origin+'/auth/google/callback'})});
+ if(!tokenRes.ok)return redirect('/login?error=oauth');
+ const tokens=await tokenRes.json() as {access_token?:string};
+ if(!tokens.access_token)return redirect('/login?error=oauth');
+ const infoRes=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:'Bearer '+tokens.access_token}});
+ if(!infoRes.ok)return redirect('/login?error=oauth');
+ const info=await infoRes.json() as {sub?:string;email?:string;email_verified?:boolean};
+ if(!info.sub||!info.email||info.email_verified!==true)return redirect('/login?error=oauth');
+ const email=info.email.trim().toLowerCase();
+ const linked=await env.DB.prepare("SELECT user_id FROM oauth_accounts WHERE provider='google' AND provider_user_id=?").bind(info.sub).first() as {user_id:string}|null;
+ const userId=linked?.user_id||await findOrCreateUser(ctx,email);
+ if(!linked)await env.DB.prepare("INSERT OR IGNORE INTO oauth_accounts(provider,provider_user_id,user_id) VALUES ('google',?,?)").bind(info.sub,userId).run();
+ await establishSession(ctx,userId);return redirect('/app');
+};
