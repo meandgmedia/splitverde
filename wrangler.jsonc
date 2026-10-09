@@ -1,0 +1,8 @@
+{
+  "name": "splitverde",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "directory": "./dist/client", "binding": "ASSETS" },
+  "d1_databases": [{ "binding": "DB", "database_name": "splitverde-db", "database_id": "5c4b4180-bae7-44bb-a996-2033f6383fe4", "migrations_dir": "migrations" }]
+}
