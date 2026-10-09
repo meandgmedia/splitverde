@@ -7,7 +7,7 @@ export const originFor=(ctx:Context)=>ctx.url.origin;
 export const randomToken=(bytes=32)=>{const a=crypto.getRandomValues(new Uint8Array(bytes));return b64(a);};
 export const b64=(bytes:Uint8Array)=>btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 export const hash=async(s:string)=>b64(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))));
-export const hmac=async(secret:string,value:string)=>{const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),'HMAC',false,['sign']);return b64(new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(value))));};
+export const hmac=async(secret:string,value:string)=>{const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return b64(new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(value))));};
 export const secureCookie=(ctx:Context)=>ctx.url.protocol==='https:';
 export const isSameOrigin=(ctx:Context)=>ctx.request.headers.get('origin')===ctx.url.origin;
 export const emailValid=(s:string)=>s.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
