@@ -1,15 +1,33 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ChangeEvent } from 'react';
 import {parseCommissions,reconcile} from '../lib/reconcile';
 const sampleExpected='policy,amount\nPOL-1001,125.00\nPOL-1002,200.00\nPOL-1003,90.00';
 const samplePaid='policy,amount\nPOL-1001,125.00\nPOL-1002,175.00\nPOL-1004,45.00';
 const money=(c:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(c/100);
 export default function ReconciliationDemo(){
  const [expected,setExpected]=useState(sampleExpected),[paid,setPaid]=useState(samplePaid);
+ const [fileError,setFileError]=useState('');
+ const readFile=async (event:ChangeEvent<HTMLInputElement>,set:(value:string)=>void)=>{
+   const file=event.target.files?.[0]; if(!file)return;
+   if(!file.name.toLowerCase().endsWith('.csv')){setFileError('Please select a .csv file.');return;}
+   if(file.size>500_000){setFileError('CSV exceeds the 500 KB demo limit.');return;}
+   try{set(await file.text());setFileError('');}catch{setFileError('Could not read this CSV file.');}
+   event.target.value='';
+ };
+ const downloadReport=()=>{
+   const rows=outcome.rows.filter(r=>r.status!=='matched');
+   const escape=(value:string)=>'"'+value.replace(/"/g,'""')+'"';
+   const lines=['policy,expected_usd,paid_usd,difference_usd,status',...rows.map(r=>[escape(r.policy),(r.expectedCents/100).toFixed(2),(r.paidCents/100).toFixed(2),(r.differenceCents/100).toFixed(2),r.status].join(','))];
+   const url=URL.createObjectURL(new Blob([lines.join('\\r\\n')],{type:'text/csv;charset=utf-8'}));
+   const anchor=document.createElement('a');anchor.href=url;anchor.download='splitverde-discrepancies.csv';anchor.click();
+   setTimeout(()=>URL.revokeObjectURL(url),1000);
+ };
  const outcome=useMemo(()=>{try{return {rows:reconcile(parseCommissions(expected),parseCommissions(paid)),error:''};}catch(e){return {rows:[],error:e instanceof Error?e.message:'Invalid CSV'};}},[expected,paid]);
  const totals=outcome.rows.reduce((s,r)=>({expected:s.expected+r.expectedCents,paid:s.paid+r.paidCents,issues:s.issues+(r.status==='matched'?0:1)}),{expected:0,paid:0,issues:0});
- return <section className="mx-auto max-w-6xl px-6 py-12"><h1 className="text-3xl font-bold text-emerald-950">Commission reconciliation demo</h1><p className="mt-3 max-w-3xl text-slate-600">Compare independently prepared expected commissions with a carrier payment statement. This demo processes CSV text in your browser only; it does not upload or save data. Use fictional records for testing.</p>
- <div className="mt-8 grid gap-5 md:grid-cols-2">{([{title:'Expected commissions',value:expected,set:setExpected},{title:'Carrier payments',value:paid,set:setPaid}] as const).map(item=><label key={item.title} className="block rounded-xl border bg-white p-5"><span className="font-semibold">{item.title}</span><span className="mt-1 block text-sm text-slate-500">CSV columns: policy,amount (USD)</span><textarea className="mt-3 h-48 w-full rounded-lg border p-3 font-mono text-sm" spellCheck={false} value={item.value} onChange={e=>item.set(e.target.value)} aria-label={item.title}/></label>)}</div>
+ return <section className="mx-auto max-w-6xl px-6 py-12"><h1 className="text-3xl font-bold text-emerald-950">Commission reconciliation demo</h1><p className="mt-3 max-w-3xl text-slate-600">Compare independently prepared expected commissions with a carrier payment statement. This demo processes CSV text in your browser only; it does not upload or save data. Use fictional records for testing; no files are sent to our server.</p>
+ <div className="mt-8 grid gap-5 md:grid-cols-2">{([{title:'Expected commissions',value:expected,set:setExpected},{title:'Carrier payments',value:paid,set:setPaid}] as const).map(item=><label key={item.title} className="block rounded-xl border bg-white p-5"><span className="font-semibold">{item.title}</span><span className="mt-1 block text-sm text-slate-500">CSV columns: policy,amount (USD)</span><input type="file" accept=".csv,text/csv" className="mt-4 block w-full text-sm" aria-label={`Upload ${item.title} CSV`} onChange={event=>void readFile(event,item.set)} /><textarea className="mt-3 h-48 w-full rounded-lg border p-3 font-mono text-sm" spellCheck={false} value={item.value} onChange={e=>item.set(e.target.value)} aria-label={item.title}/></label>)}</div>
+ {fileError&&<p role="alert" className="mt-5 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">{fileError}</p>}
  {outcome.error?<p role="alert" className="mt-6 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">{outcome.error}</p>:<><div className="mt-6 grid gap-4 sm:grid-cols-3">{[['Expected',money(totals.expected)],['Paid',money(totals.paid)],['Policies needing review',String(totals.issues)]].map(([k,v])=><div key={k} className="rounded-xl border bg-white p-5"><p className="text-sm text-slate-500">{k}</p><p className="mt-2 text-2xl font-bold">{v}</p></div>)}</div>
+ <button type="button" onClick={downloadReport} className="mt-6 rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white">Download discrepancies CSV</button>
  <div className="mt-6 overflow-x-auto rounded-xl border bg-white"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-100"><tr>{['Policy','Expected','Paid','Difference','Status'].map(h=><th key={h} className="p-4">{h}</th>)}</tr></thead><tbody>{outcome.rows.map(r=><tr key={r.policy} className="border-t"><td className="p-4 font-medium">{r.policy}</td><td className="p-4">{money(r.expectedCents)}</td><td className="p-4">{money(r.paidCents)}</td><td className="p-4">{money(r.differenceCents)}</td><td className="p-4 capitalize">{r.status}</td></tr>)}</tbody></table></div></>}
  <p className="mt-5 text-sm text-slate-500">Prototype limitations: exact policy ID matching, summed amounts per policy, USD only. No fuzzy matching, transaction dates, carrier-specific rules, refunds classification, or persistence yet.</p></section>;
 }
