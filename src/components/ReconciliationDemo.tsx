@@ -6,11 +6,13 @@ const money=(c:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency
 export default function ReconciliationDemo(){
  const [expected,setExpected]=useState(sampleExpected),[paid,setPaid]=useState(samplePaid);
  const [fileError,setFileError]=useState('');
- const readFile=async (event:ChangeEvent<HTMLInputElement>,set:(value:string)=>void)=>{
+ const [expectedFile,setExpectedFile]=useState('');
+ const [paidFile,setPaidFile]=useState('');
+ const readFile=async (event:ChangeEvent<HTMLInputElement>,set:(value:string)=>void,setFilename:(value:string)=>void)=>{
    const file=event.target.files?.[0]; if(!file)return;
    if(!file.name.toLowerCase().endsWith('.csv')){setFileError('Please select a .csv file.');return;}
    if(file.size>500_000){setFileError('CSV exceeds the 500 KB demo limit.');return;}
-   try{set(await file.text());setFileError('');}catch{setFileError('Could not read this CSV file.');}
+   try{const content=await file.text();parseCommissions(content);set(content);setFilename(file.name);setFileError('');}catch(e){setFileError(e instanceof Error?e.message:'Could not read this CSV file.');}
    event.target.value='';
  };
  const downloadReport=()=>{
@@ -24,7 +26,7 @@ export default function ReconciliationDemo(){
  const outcome=useMemo(()=>{try{return {rows:reconcile(parseCommissions(expected),parseCommissions(paid)),error:''};}catch(e){return {rows:[],error:e instanceof Error?e.message:'Invalid CSV'};}},[expected,paid]);
  const totals=outcome.rows.reduce((s,r)=>({expected:s.expected+r.expectedCents,paid:s.paid+r.paidCents,issues:s.issues+(r.status==='matched'?0:1)}),{expected:0,paid:0,issues:0});
  return <section className="mx-auto max-w-6xl px-6 py-12"><h1 className="text-3xl font-bold text-emerald-950">Commission reconciliation demo</h1><p className="mt-3 max-w-3xl text-slate-600">Compare independently prepared expected commissions with a carrier payment statement. This demo processes CSV text in your browser only; it does not upload or save data. Use fictional records for testing; no files are sent to our server.</p>
- <div className="mt-8 grid gap-5 md:grid-cols-2">{([{title:'Expected commissions',value:expected,set:setExpected},{title:'Carrier payments',value:paid,set:setPaid}] as const).map(item=><label key={item.title} className="block rounded-xl border bg-white p-5"><span className="font-semibold">{item.title}</span><span className="mt-1 block text-sm text-slate-500">CSV columns: policy,amount (USD)</span><input type="file" accept=".csv,text/csv" className="mt-4 block w-full text-sm" aria-label={`Upload ${item.title} CSV`} onChange={event=>void readFile(event,item.set)} /><textarea className="mt-3 h-48 w-full rounded-lg border p-3 font-mono text-sm" spellCheck={false} value={item.value} onChange={e=>item.set(e.target.value)} aria-label={item.title}/></label>)}</div>
+ <div className="mt-8 grid gap-5 md:grid-cols-2">{([{title:'Expected commissions',value:expected,set:setExpected,filename:expectedFile,setFilename:setExpectedFile},{title:'Carrier payments',value:paid,set:setPaid,filename:paidFile,setFilename:setPaidFile}] as const).map(item=><label key={item.title} className="block rounded-xl border bg-white p-5"><span className="font-semibold">{item.title}</span><span className="mt-1 block text-sm text-slate-500">CSV columns: policy,amount (USD)</span><input type="file" accept=".csv,text/csv" className="mt-4 block w-full text-sm" aria-label={`Upload ${item.title} CSV`} onChange={event=>void readFile(event,item.set,item.setFilename)} /><span className="mt-2 block min-h-5 text-sm font-medium text-emerald-800" aria-live="polite">{item.filename ? `✓ Loaded: ${item.filename}` : 'Using sample data — no file uploaded'}</span><textarea className="mt-3 h-48 w-full rounded-lg border p-3 font-mono text-sm" spellCheck={false} value={item.value} onChange={e=>{item.set(e.target.value);item.setFilename('');}} aria-label={item.title}/></label>)}</div>
  {fileError&&<p role="alert" className="mt-5 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">{fileError}</p>}
  {outcome.error?<p role="alert" className="mt-6 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">{outcome.error}</p>:<><div className="mt-6 grid gap-4 sm:grid-cols-3">{[['Expected',money(totals.expected)],['Paid',money(totals.paid)],['Policies needing review',String(totals.issues)]].map(([k,v])=><div key={k} className="rounded-xl border bg-white p-5"><p className="text-sm text-slate-500">{k}</p><p className="mt-2 text-2xl font-bold">{v}</p></div>)}</div>
  <button type="button" onClick={downloadReport} className="mt-6 rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white">Download discrepancies CSV</button>
