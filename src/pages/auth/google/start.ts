@@ -9,5 +9,5 @@ export const GET:APIRoute=async(ctx)=>{
  const url=new URL('https://accounts.google.com/o/oauth2/v2/auth');
  url.searchParams.set('client_id',env.GOOGLE_CLIENT_ID);url.searchParams.set('redirect_uri',ctx.url.origin+'/auth/google/callback');
  url.searchParams.set('response_type','code');url.searchParams.set('scope','openid email profile');url.searchParams.set('state',state);url.searchParams.set('code_challenge',challenge);url.searchParams.set('code_challenge_method','S256');url.searchParams.set('prompt','select_account');
- return Response.redirect(url.toString(),302);
+ return new Response(null,{status:302,headers:{Location:url.toString(),'Cache-Control':'no-store'}});
 };
